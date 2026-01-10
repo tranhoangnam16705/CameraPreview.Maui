@@ -28,8 +28,10 @@
 	<ItemGroup>
 		<EmbeddedResource Include="LandmarkModels\*.task" />
 	</ItemGroup>
-	<ItemGroup>
-		<Folder Include="Platforms\iOS\" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0-ios'">
+	  <PackageReference Include="MediaPipeTasksVision.iOS">
+	    <Version>0.10.21</Version>
+	  </PackageReference>
 	</ItemGroup>
 
 </Project>

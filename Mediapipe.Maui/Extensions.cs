@@ -1,8 +1,5 @@
 ﻿using Mediapipe.Maui.Interfaces;
 using Mediapipe.Maui.Models;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Mediapipe.Maui
 {
@@ -19,6 +16,13 @@ namespace Mediapipe.Maui
                 return new Mediapipe.Maui.Platforms.Android.Services.AndroidMediaPipeDetectorFactory(context);
             });
 
+#elif IOS
+           // Register Android MediaPipe Factory
+            builder.Services.AddSingleton<IMediaPipeDetectorFactory>(sp =>
+            {
+                return new Mediapipe.Maui.Platforms.iOS.Services.iOSMediaPipeDetectorFactory();
+            });
+#endif
             // Register Face Landmarker
             builder.Services.AddSingleton<IMediaPipeDetector<FaceLandmarksResult>>(sp =>
             {
@@ -32,10 +36,6 @@ namespace Mediapipe.Maui
                 var factory = sp.GetRequiredService<IMediaPipeDetectorFactory>();
                 return factory.CreateHandLandmarker();
             });
-
-#elif IOS
-           
-#endif
             return builder;
         }
     }

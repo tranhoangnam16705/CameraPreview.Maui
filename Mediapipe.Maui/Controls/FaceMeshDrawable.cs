@@ -13,7 +13,7 @@ namespace Mediapipe.Maui.Controls
         public float ImageWidth { get; set; } = 1;
         public float ImageHeight { get; set; } = 1;
 
-        private const float LANDMARK_STROKE_WIDTH = 2f;
+        private const float LANDMARK_STROKE_WIDTH = 1f;
 
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
