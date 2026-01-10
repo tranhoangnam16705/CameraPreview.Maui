@@ -68,7 +68,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     using var mpImage = new MPPImage(uiImage, out error);
 
                     var handResult = _handLandmarker.DetectImage(mpImage, out error);
-                    var countHand = handResult?.Landmarks.Count();
+                    var countHand = handResult?.Landmarks.Length;
                     if (countHand > 0)
                     {
                         result.IsDetected = true;
@@ -86,7 +86,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                                 result.Hands.Add(handLandmarks);
                             }
                         }
-                        var handednessCount = handResult.Handedness.Count();
+                        var handednessCount = handResult.Handedness.Length;
                         // Get handedness (left/right)
                         if (handednessCount > 0)
                         {
@@ -128,7 +128,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     X = landmark.X,
                     Y = landmark.Y,
                     Z = landmark.Z,
-                    Index = i,c
+                    Index = i,
                     Type = (HandLandmarkType)i
                 });
             }
