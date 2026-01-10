@@ -2,6 +2,7 @@
 using CameraPreview.Maui.Controls;
 using CameraPreview.Maui.Models;
 using CoreGraphics;
+using CoreImage;
 using CoreMedia;
 using CoreVideo;
 using Foundation;
@@ -461,8 +462,11 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
 
                     _isProcessing = true;
                     _skipFrames = SKIP_FRAME_COUNT;
+
+                    var capture = CIImage.FromImageBuffer(sampleBuffer.GetImageBuffer());
+
                     // Convert to UIImage
-                    var image = GetImageFromSampleBuffer(sampleBuffer);
+                    var image = SampleBufferToUIImage(sampleBuffer);
                     if (image != null)
                     {
                         // Convert to JPEG bytes
@@ -502,60 +506,33 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
                 }
             }
 
-            private UIImage GetImageFromSampleBuffer(CMSampleBuffer sampleBuffer)
+            private UIImage SampleBufferToUIImage(CMSampleBuffer sampleBuffer)
             {
-                try
-                {
-                    using var pixelBuffer = sampleBuffer.GetImageBuffer() as CVPixelBuffer;
-                    if (pixelBuffer == null) return null;
-
-                    pixelBuffer.Lock(CVPixelBufferLock.ReadOnly);
-
-                    var baseAddress = pixelBuffer.BaseAddress;
-                    var bytesPerRow = (int)pixelBuffer.BytesPerRow;
-                    var width = (int)pixelBuffer.Width;
-                    var height = (int)pixelBuffer.Height;
-
-                    var colorSpace = CGColorSpace.CreateDeviceRGB();
-
-                    using var context = new CGBitmapContext(
-                        baseAddress,
-                        width,
-                        height,
-                        8,
-                        bytesPerRow,
-                        colorSpace,
-                        CGImageAlphaInfo.PremultipliedFirst);
-
-                    var cgImage = context.ToImage();
-                    pixelBuffer.Unlock(CVPixelBufferLock.ReadOnly);
-
-                    if (cgImage == null) return null;
-
-                    // Handle rotation and mirroring
-                    var image = new UIImage(cgImage);
-
-                    // Mirror front camera
-                    if (_cameraView.UseFrontCamera)
-                    {
-                        image = UIImageExtensions.FlipImage(image);
-                    }
-
-                    // Rotate based on device orientation
-                    var orientation = UIDevice.CurrentDevice.Orientation;
-                    image = RotateImage(image, orientation);
-
-                    cgImage.Dispose();
-
-                    return image;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"GetImageFromSampleBuffer error: {ex.Message}");
+                var pixelBuffer = sampleBuffer.GetImageBuffer() as CVPixelBuffer;
+                if (pixelBuffer == null)
                     return null;
-                }
-            }
+                var ciImage = CIImage.FromImageBuffer(pixelBuffer);
 
+                using var context = CIContext.FromOptions(null);
+                using var cgImage = context.CreateCGImage(ciImage, ciImage.Extent);
+
+                if (cgImage == null)
+                    return null;
+
+                var uiImage = UIImage.FromImage(cgImage);
+                // Mirror front camera
+                if (_cameraView.UseFrontCamera)
+                {
+                    uiImage = UIImageExtensions.FlipImage(uiImage);
+                }
+                // Rotate based on device orientation
+                var orientation = UIDevice.CurrentDevice.Orientation;
+                uiImage = RotateImage(uiImage, orientation);
+
+                cgImage.Dispose();
+
+                return uiImage;
+            }
             private UIImage RotateImage(UIImage image, UIDeviceOrientation orientation)
             {
                 UIImageOrientation imageOrientation;

@@ -1,4 +1,5 @@
 ﻿using CoreGraphics;
+using CoreImage;
 using Foundation;
 using Mediapipe.Maui.LandmarkModels;
 using Mediapipe.Maui.Models;
@@ -64,12 +65,16 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     using var nsData = NSData.FromArray(imageData);
                     using var uiImage = UIImage.LoadFromData(nsData);
 
-                    NSError error;
-                    // Create CIImage for Vision
-                    using var mpImage = new MPPImage(uiImage, out error);
-
+                    NSError mpError = null;
+                    var mpImage = new MPPImage(uiImage,out mpError);
+                    if (mpError != null)
+                    {
+                        Debug.WriteLine($"MPPImage creation failed: {mpError.LocalizedDescription}");
+                        return result;
+                    }
+                    NSError error = null;
                     var faceResult = _landmarker.DetectImage(mpImage, out error);
-                    var countFace = faceResult?.FaceLandmarks.Count();
+                    var countFace = faceResult?.FaceLandmarks.Length;
                     if (countFace > 0)
                     {
                         result.IsDetected = true;
@@ -77,14 +82,22 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                         // Convert all detected faces
                         for (int faceIdx = 0; faceIdx < countFace; faceIdx++)
                         {
-                            var landmarks = faceResult?.FaceLandmarks[faceIdx];
-                            var faceLandmarks = new List<FaceLandmark>();
-
-                            // Convert MediaPipe landmarks to our model
-                            faceLandmarks = ConvertLandmarks(landmarks);
-                            if (faceLandmarks != null && faceLandmarks.Count > 0)
+                            var face = faceResult?.FaceLandmarks;
+                            if (face != null && face.Length > 0)
                             {
-                                result.Faces.Add(faceLandmarks);
+                                var landmarks = face[faceIdx];
+                                if (landmarks != null)
+                                {
+                                    var faceLandmarks = new List<FaceLandmark>();
+
+                                    // Convert MediaPipe landmarks to our model
+                                    faceLandmarks = ConvertLandmarks(landmarks);
+                                    if (faceLandmarks != null && faceLandmarks.Count > 0)
+                                    {
+                                        result.Faces.Add(faceLandmarks);
+                                    }
+                                }
+
                             }
                         }
 
@@ -114,7 +127,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     Y = landmark.Y,
                     Z = landmark.Z,
                     Index = i,
-                    Visibility = landmark.Visibility.FloatValue
+                    Visibility = landmark.Visibility != null ? landmark.Visibility.FloatValue : 1.0f
                 });
             }
 
@@ -123,6 +136,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
 
         public override void Dispose()
         {
+            _landmarker = null;
             base.Dispose();
         }
     }

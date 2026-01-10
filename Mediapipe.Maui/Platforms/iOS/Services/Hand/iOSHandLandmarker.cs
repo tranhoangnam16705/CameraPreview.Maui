@@ -128,7 +128,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     X = landmark.X,
                     Y = landmark.Y,
                     Z = landmark.Z,
-                    Index = i,
+                    Index = i,c
                     Type = (HandLandmarkType)i
                 });
             }

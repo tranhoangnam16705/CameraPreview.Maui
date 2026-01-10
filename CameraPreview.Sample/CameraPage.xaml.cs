@@ -148,7 +148,7 @@ public partial class CameraPage : ContentPage
 
     private async void Button_Clicked(object sender, EventArgs e)
     {
-        var image = await camerapreview.TakePhotoAsync();
-        imagesource.Source = ToImageSource(image);
+        var image = await camerapreview.GetSnapShotAsync();
+        imagesource.Source = image;
     }
 }
