@@ -1,6 +1,3 @@
----
-
-```md
 # 📸 CameraPreview.Maui
 
 **CameraPreview.Maui** — A custom **Camera Preview Control** for .NET MAUI apps.
