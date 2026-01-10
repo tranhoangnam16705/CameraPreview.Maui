@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="CameraPreview.Sample.CameraPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:CameraPreview.Maui.Controls;assembly=CameraPreview.Maui"
+    Title="CameraPage">
+    <Grid>
+        <!--  Native Camera View - Simple!  -->
+        <controls:CameraView
+            x:Name="camerapreview"
+            Grid.Row="0"
+            AutoStart="False"
+            CameraStarted="camerapreview_CameraStarted"
+            FrameReady="OnFrameReady"
+            HeightRequest="500"
+            HorizontalOptions="Center"
+            VerticalOptions="Start"
+            WidthRequest="500" />
+
+        <StackLayout
+            Grid.Row="1"
+            HorizontalOptions="Center"
+            VerticalOptions="End">
+            <Image
+                x:Name="imagesource"
+                HeightRequest="400"
+                WidthRequest="400" />
+            <Button
+                Clicked="Button_Clicked"
+                HeightRequest="50"
+                Text="Test chụp ảnh"
+                WidthRequest="200" />
+        </StackLayout>
+
+
+    </Grid>
+</ContentPage>
