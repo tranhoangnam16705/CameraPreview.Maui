@@ -41,7 +41,7 @@ namespace Mediapipe.Maui.Platforms.Android.Services
 
                     var faceOptions = FaceLandmarker.FaceLandmarkerOptions.InvokeBuilder()
                         .SetBaseOptions(faceBaseOptions)
-                        .SetNumFaces((Java.Lang.Integer)2)
+                        .SetNumFaces((Java.Lang.Integer)_options.MaxNumResults)
                         .SetMinFaceDetectionConfidence((Java.Lang.Float)_options.MinDetectionConfidence)
                         .SetMinFacePresenceConfidence((Java.Lang.Float)_options.MinDetectionConfidence)
                         .SetMinTrackingConfidence((Java.Lang.Float)_options.MinTrackingConfidence)
