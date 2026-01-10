@@ -1,4 +1,7 @@
 <Solution>
   <Project Path="CameraPreview.Maui/CameraPreview.Maui.csproj" />
-  <Project Path="CameraPreview.Sample/CameraPreview.Sample.csproj" Id="1fbc447d-a9ee-4ba4-9a73-eef26cb72764" />
+  <Project Path="CameraPreview.Sample/CameraPreview.Sample.csproj" Id="1fbc447d-a9ee-4ba4-9a73-eef26cb72764">
+    <Deploy Solution="Debug|*" />
+  </Project>
+  <Project Path="Mediapipe.Maui/Mediapipe.Maui.csproj" Id="5037c0dc-b436-405b-9780-89d6cff66649" />
 </Solution>

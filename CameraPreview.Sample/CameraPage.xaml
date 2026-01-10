@@ -11,12 +11,52 @@
             x:Name="camerapreview"
             Grid.Row="0"
             AutoStart="False"
-            CameraStarted="camerapreview_CameraStarted"
             FrameReady="OnFrameReady"
             HeightRequest="500"
             HorizontalOptions="Center"
             VerticalOptions="Start"
             WidthRequest="500" />
+
+        <!--  Overlay for drawing  -->
+        <GraphicsView
+            x:Name="OverlayCanvas"
+            Grid.Row="0"
+            HeightRequest="500"
+            HorizontalOptions="Center"
+            InputTransparent="True"
+            VerticalOptions="Start"
+            WidthRequest="500" />
+
+        <StackLayout
+            Grid.Row="1"
+            Padding="15"
+            BackgroundColor="#80000000"
+            Spacing="8">
+            <Label
+                x:Name="lblStatus"
+                FontAttributes="Bold"
+                FontSize="18"
+                HorizontalOptions="Center"
+                Text="Initializing..." />
+            <Label
+                x:Name="lblEAR"
+                FontSize="14"
+                Text="EAR: -"
+                TextColor="White" />
+            <Label
+                x:Name="lblDrowsy"
+                FontSize="14"
+                Text="Drowsiness: Not detected" />
+            <Label
+                x:Name="lblSmoking"
+                FontSize="14"
+                Text="Smoking: Not detected" />
+            <Label
+                x:Name="lblFPS"
+                FontSize="12"
+                Text="FPS: 0"
+                TextColor="LightGray" />
+        </StackLayout>
 
         <StackLayout
             Grid.Row="1"

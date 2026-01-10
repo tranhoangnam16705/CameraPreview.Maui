@@ -59,6 +59,7 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\CameraPreview.Maui\CameraPreview.Maui.csproj" />
+	  <ProjectReference Include="..\Mediapipe.Maui\Mediapipe.Maui.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 	  <MauiXaml Update="CameraPage.xaml">

@@ -1,6 +1,9 @@
-﻿using CameraPreview.Maui.Controls;
+﻿using CameraPreview.Maui;
+using CameraPreview.Maui.Controls;
+using Mediapipe.Maui.Services;
+using Mediapipe.Maui.Servicesss;
 using Microsoft.Extensions.Logging;
-using CameraPreview.Maui;
+using Mediapipe.Maui;
 
 namespace CameraPreview.Sample
 {
@@ -15,10 +18,14 @@ namespace CameraPreview.Sample
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                }).UseCameraPreView();
+                }).UseCameraPreView().UseMediaPipe();
 
+            builder.Services.AddTransient<DrowsinessAnalyzer>();
+            builder.Services.AddTransient<SmokingAnalyzer>();
+            builder.Services.AddTransient<FaceMeshAnalyzer>();
+            builder.Services.AddTransient<HandTrackingAnalyzer>();
 #if DEBUG
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
             return builder.Build();
