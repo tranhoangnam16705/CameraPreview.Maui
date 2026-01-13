@@ -94,6 +94,9 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     NSError detectError;
                     var handResult = _handLandmarker.DetectImage(mpImage, out detectError);
 
+                    // Dispose mpImage immediately after detection to free resources
+                    mpImage.Dispose();
+
                     if (detectError != null)
                     {
                         Debug.WriteLine($"Hand detection error: {detectError.LocalizedDescription}");

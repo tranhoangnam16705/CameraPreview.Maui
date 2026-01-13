@@ -96,6 +96,9 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     NSError detectError;
                     var faceResult = _landmarker.DetectImage(mpImage, out detectError);
 
+                    // Dispose mpImage immediately after detection to free resources
+                    mpImage.Dispose();
+
                     if (detectError != null)
                     {
                         Debug.WriteLine($"Face detection error: {detectError.LocalizedDescription}");
