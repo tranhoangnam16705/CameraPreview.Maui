@@ -1,7 +1,4 @@
 ﻿using Mediapipe.Maui.Models;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Mediapipe.Maui.Controls
 {
@@ -34,7 +31,7 @@ namespace Mediapipe.Maui.Controls
             {
                 DrawLandmarks(canvas, face, offsetX, offsetY);
                 DrawConnectors(canvas, face, offsetX, offsetY);
-            } 
+            }
         }
 
         private void DrawLandmarks(

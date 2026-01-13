@@ -101,7 +101,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             }
         }
 
-        #endregion
+        #endregion Device Discovery
 
         #region Camera Control
 
@@ -198,7 +198,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             _cameraView.Camera = camera;
         }
 
-        #endregion
+        #endregion Camera Control
 
         #region Capture Session Setup
 
@@ -530,7 +530,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             _captureDevice = null;
         }
 
-        #endregion
+        #endregion Capture Session Setup
 
         #region Layout
 
@@ -544,7 +544,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             }
         }
 
-        #endregion
+        #endregion Layout
 
         #region Snapshot
 
@@ -603,7 +603,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             }
         }
 
-        #endregion
+        #endregion Snapshot
 
         #region Photo Capture
 
@@ -656,7 +656,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             return tcs.Task;
         }
 
-        #endregion
+        #endregion Photo Capture
 
         #region Event Handlers
 
@@ -680,7 +680,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             TakePhotoSaved?.Invoke(this, filePath);
         }
 
-        #endregion
+        #endregion Event Handlers
 
         #region Disposal
 
@@ -700,7 +700,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             base.Dispose(disposing);
         }
 
-        #endregion
+        #endregion Disposal
 
         #region Frame Delegate
 
@@ -849,7 +849,7 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             }
         }
 
-        #endregion
+        #endregion Frame Delegate
 
         #region Photo Capture Delegate
 
@@ -954,6 +954,6 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             }
         }
 
-        #endregion
+        #endregion Photo Capture Delegate
     }
 }

@@ -65,13 +65,13 @@ namespace CameraPreview.Maui.Controls
             set { SetValue(CameraProperty, value); }
         }
 
-
         public static readonly BindableProperty SnapShotProperty = BindableProperty.Create(
             nameof(SnapShot),
             typeof(ImageSource),
             typeof(CameraView),
             null,
             BindingMode.OneWayToSource);
+
         /// <summary>
         /// Refreshes according to the frequency set in the AutoSnapShotSeconds property (if AutoSnapShotAsImageSource is set to true)
         /// or when GetSnapShot is called or TakeAutoSnapShot is set to true
@@ -216,7 +216,6 @@ namespace CameraPreview.Maui.Controls
             return tcs.Task;
         }
 
-
         /// <summary>
         /// Takes a photo from the camera selected.
         /// </summary>
@@ -242,7 +241,6 @@ namespace CameraPreview.Maui.Controls
         {
             if (newValue != null && oldValue != newValue && bindable is CameraView cameraView && newValue is CameraPreviewInfo)
             {
-
             }
         }
 
@@ -290,9 +288,7 @@ namespace CameraPreview.Maui.Controls
     ImageFormat Format, string SnapFilePath,
     TaskCompletionSource<bool> Completion);
 
-
     public sealed record TakePhotoRequest(
     ImageFormat Format,
     TaskCompletionSource<Stream> Completion);
-
 }

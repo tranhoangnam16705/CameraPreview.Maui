@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Mediapipe.Maui.LandmarkModels
+﻿namespace Mediapipe.Maui.LandmarkModels
 {
     public static class LandmarkModelProvider
     {

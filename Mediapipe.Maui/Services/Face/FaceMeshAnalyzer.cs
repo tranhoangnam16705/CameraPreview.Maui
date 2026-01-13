@@ -16,7 +16,6 @@ namespace Mediapipe.Maui.Services
             _faceLandmarker = faceLandmarker ?? throw new ArgumentNullException(nameof(faceLandmarker));
         }
 
-
         public async Task InitializeAsync(MediaPipeOptions options)
         {
             await _faceLandmarker.InitializeAsync(options);
