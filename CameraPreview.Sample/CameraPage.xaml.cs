@@ -46,10 +46,10 @@ public partial class CameraPage : ContentPage
                 imageWidth: e.Width,
                 imageHeight: e.Height,
                 runningMode: FaceRunningMode.LiveStream);
-
+            lblStatus.Text = e.Width + " : " +  e.Height;
             _overlayDrawable.Results = result;
-            _overlayDrawable.ImageWidth = (float)camerapreview.Width;
-            _overlayDrawable.ImageHeight = (float)camerapreview.Height;
+            _overlayDrawable.ImageWidth = e.Width;   // Image width, not view width
+            _overlayDrawable.ImageHeight = e.Height; // Image height, not view height
             _overlayDrawable.ScaleFactor = scale;
             OverlayCanvas.Invalidate();
 
@@ -148,7 +148,7 @@ public partial class CameraPage : ContentPage
 
     private async void Button_Clicked(object sender, EventArgs e)
     {
-        var image = await camerapreview.GetSnapShotAsync();
-        imagesource.Source = image;
+        var image = await camerapreview.TakePhotoAsync();
+        imagesource.Source = ToImageSource(image);
     }
 }

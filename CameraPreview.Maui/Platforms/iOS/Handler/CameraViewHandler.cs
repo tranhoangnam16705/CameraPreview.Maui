@@ -145,18 +145,24 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             req.Completion.TrySetResult(result);
         }
 
-        private static void TakePhotoAsync(CameraViewHandler handler, CameraView view, object args)
+        private static async void TakePhotoAsync(CameraViewHandler handler, CameraView view, object args)
         {
             if (handler.PlatformView == null || args is not TakePhotoRequest req)
             {
                 (args as TakePhotoRequest)?.Completion.TrySetResult(null);
                 return;
             }
-            MainThread.InvokeOnMainThreadAsync(async () =>
+
+            try
             {
                 var result = await handler.PlatformView.TakePhotoAsync(req.Format);
                 req.Completion.TrySetResult(result);
-            }).Wait();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"TakePhotoAsync error: {ex.Message}");
+                req.Completion.TrySetException(ex);
+            }
         }
 
         #endregion Command Mappers
