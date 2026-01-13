@@ -14,6 +14,8 @@ public partial class CameraPage : ContentPage
     private readonly SmokingAnalyzer _smoking;
     private readonly FaceMeshAnalyzer _faceMeshAnalyzer;
     private readonly FaceMeshDrawable _overlayDrawable;
+    private readonly SemaphoreSlim _processingLock = new(1, 1);
+    private volatile bool _isProcessing;
 
     public CameraPage(DrowsinessAnalyzer drowsiness,
         SmokingAnalyzer smoking,
@@ -35,26 +37,38 @@ public partial class CameraPage : ContentPage
 
     private async void OnFrameReady(object sender, CameraFrameEventArgs e)
     {
-        // Process with MediaPipe
-        var result = await _faceMeshAnalyzer.AnalyzeAsync(e.ImageData);
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            // 2️⃣ TÍNH SCALE FACTOR Ở ĐÂY
-            var scale = CalculateScaleFactor(
-                viewWidth: (float)camerapreview.Width,
-                viewHeight: (float)camerapreview.Height,
-                imageWidth: e.Width,
-                imageHeight: e.Height,
-                runningMode: FaceRunningMode.LiveStream);
-            lblStatus.Text = e.Width + " : " +  e.Height;
-            _overlayDrawable.Results = result;
-            _overlayDrawable.ImageWidth = e.Width;   // Image width, not view width
-            _overlayDrawable.ImageHeight = e.Height; // Image height, not view height
-            _overlayDrawable.ScaleFactor = scale;
-            OverlayCanvas.Invalidate();
+        // Skip frame if already processing to prevent queue buildup
+        if (_isProcessing)
+            return;
 
-            //UpdateUI(result);
-        });
+        _isProcessing = true;
+        try
+        {
+            // Process with MediaPipe
+            var result = await _faceMeshAnalyzer.AnalyzeAsync(e.ImageData);
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                // 2️⃣ TÍNH SCALE FACTOR Ở ĐÂY
+                var scale = CalculateScaleFactor(
+                    viewWidth: (float)camerapreview.Width,
+                    viewHeight: (float)camerapreview.Height,
+                    imageWidth: e.Width,
+                    imageHeight: e.Height,
+                    runningMode: FaceRunningMode.LiveStream);
+                lblStatus.Text = e.Width + " : " + e.Height;
+                _overlayDrawable.Results = result;
+                _overlayDrawable.ImageWidth = e.Width;   // Image width, not view width
+                _overlayDrawable.ImageHeight = e.Height; // Image height, not view height
+                _overlayDrawable.ScaleFactor = scale;
+                OverlayCanvas.Invalidate();
+
+                //UpdateUI(result);
+            });
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
     }
 
     private float CalculateScaleFactor(

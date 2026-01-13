@@ -69,13 +69,16 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
             {
                 var result = new FaceLandmarksResult();
 
+                if (_landmarker == null)
+                    return result;
+
+                UIImage uiImage = null;
+                MPPImage mpImage = null;
+
                 try
                 {
-                    if (_landmarker == null)
-                        return result;
-
                     using var nsData = NSData.FromArray(imageData);
-                    var uiImage = UIImage.LoadFromData(nsData);
+                    uiImage = UIImage.LoadFromData(nsData);
 
                     if (uiImage == null)
                     {
@@ -84,25 +87,20 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     }
 
                     NSError imageError;
-                    var mpImage = new MPPImage(uiImage, out imageError);
+                    mpImage = new MPPImage(uiImage, out imageError);
 
                     if (imageError != null)
                     {
                         Debug.WriteLine($"MPPImage creation failed: {imageError.LocalizedDescription}");
-                        uiImage.Dispose();
                         return result;
                     }
 
                     NSError detectError;
                     var faceResult = _landmarker.DetectImage(mpImage, out detectError);
 
-                    // Dispose mpImage immediately after detection to free resources
-                    mpImage.Dispose();
-
                     if (detectError != null)
                     {
                         Debug.WriteLine($"Face detection error: {detectError.LocalizedDescription}");
-                        uiImage.Dispose();
                         return result;
                     }
 
@@ -127,12 +125,16 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                         // Extract detection confidence from face blendshapes if available
                         result.DetectionConfidence = ExtractConfidence(faceResult);
                     }
-
-                    uiImage.Dispose();
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"iOS Face detection error: {ex.Message}");
+                }
+                finally
+                {
+                    // Always dispose resources in reverse order of creation
+                    mpImage?.Dispose();
+                    uiImage?.Dispose();
                 }
 
                 return result;
