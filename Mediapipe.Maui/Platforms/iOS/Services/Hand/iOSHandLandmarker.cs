@@ -9,14 +9,14 @@ using UIKit;
 namespace Mediapipe.Maui.Platforms.iOS.Services
 {
     /// <summary>
-    /// iOS Hand Landmarker using Apple Vision Framework
-    /// Vision provides 21 hand landmarks (same as MediaPipe)
+    /// iOS Hand Landmarker using MediaPipe Tasks Vision (MPPHandLandmarker)
+    /// Detects 21 hand landmarks for hand tracking and gesture recognition
     /// </summary>
     public class iOSHandLandmarker : MediaPipeDetectorBase<HandLandmarksResult>
     {
         private MPPHandLandmarker _handLandmarker;
 
-        public override string DetectorName => "iOS Hand Landmarker (Vision)";
+        public override string DetectorName => "iOS Hand Landmarker";
 
         protected override Task InitializeDetectorAsync()
         {
@@ -36,13 +36,22 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                     {
                         BaseOptions = baseOptions,
                         RunningMode = MPPRunningMode.Image,
-                        NumHands = _options.MaxNumResults
+                        NumHands = _options.MaxNumResults,
+                        MinHandDetectionConfidence = _options.MinDetectionConfidence,
+                        MinHandPresenceConfidence = _options.MinDetectionConfidence,
+                        MinTrackingConfidence = _options.MinTrackingConfidence
                     };
 
                     NSError error;
                     _handLandmarker = new MPPHandLandmarker(options, out error);
+
                     if (error != null)
-                        Debug.WriteLine("iOSFaceLandmarker initialized with Vision Framework :" + error);
+                    {
+                        Debug.WriteLine($"iOSHandLandmarker initialization error: {error.LocalizedDescription}");
+                        throw new InvalidOperationException($"Failed to initialize hand landmarker: {error.LocalizedDescription}");
+                    }
+
+                    Debug.WriteLine("iOSHandLandmarker initialized successfully");
                 }
                 catch (Exception ex)
                 {
@@ -60,45 +69,77 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
 
                 try
                 {
+                    if (_handLandmarker == null)
+                        return result;
+
                     using var nsData = NSData.FromArray(imageData);
-                    using var uiImage = UIImage.LoadFromData(nsData);
+                    var uiImage = UIImage.LoadFromData(nsData);
 
-                    NSError error;
-                    // Create CIImage for Vision
-                    using var mpImage = new MPPImage(uiImage, out error);
+                    if (uiImage == null)
+                    {
+                        Debug.WriteLine("Failed to create UIImage from byte array");
+                        return result;
+                    }
 
-                    var handResult = _handLandmarker.DetectImage(mpImage, out error);
-                    var countHand = handResult?.Landmarks.Length;
-                    if (countHand > 0)
+                    NSError imageError;
+                    var mpImage = new MPPImage(uiImage, out imageError);
+
+                    if (imageError != null)
+                    {
+                        Debug.WriteLine($"MPPImage creation failed: {imageError.LocalizedDescription}");
+                        uiImage.Dispose();
+                        return result;
+                    }
+
+                    NSError detectError;
+                    var handResult = _handLandmarker.DetectImage(mpImage, out detectError);
+
+                    if (detectError != null)
+                    {
+                        Debug.WriteLine($"Hand detection error: {detectError.LocalizedDescription}");
+                        uiImage.Dispose();
+                        return result;
+                    }
+
+                    if (handResult?.Landmarks != null && handResult.Landmarks.Length > 0)
                     {
                         result.IsDetected = true;
+                        var handCount = (int)handResult.Landmarks.Length;
 
                         // Convert all detected hands
-                        for (int handIdx = 0; handIdx < countHand; handIdx++)
+                        for (int handIdx = 0; handIdx < handCount; handIdx++)
                         {
                             var landmarks = handResult.Landmarks[handIdx];
-                            var handLandmarks = new List<Models.HandLandmark>();
-
-                            // Convert MediaPipe landmarks to our model
-                            handLandmarks = ConvertHandLandmarks(landmarks);
-                            if (handLandmarks != null && handLandmarks.Count > 0)
+                            if (landmarks != null && landmarks.Count > 0)
                             {
-                                result.Hands.Add(handLandmarks);
+                                var handLandmarks = ConvertHandLandmarks(landmarks);
+                                if (handLandmarks.Count > 0)
+                                {
+                                    result.Hands.Add(handLandmarks);
+                                }
                             }
                         }
-                        var handednessCount = handResult.Handedness.Length;
+
                         // Get handedness (left/right)
-                        if (handednessCount > 0)
+                        // Handedness is NSArray<NSArray<MPPCategory>> - outer array per hand, inner array of categories
+                        if (handResult.Handedness != null && handResult.Handedness.Length > 0)
                         {
+                            var handednessCount = (int)handResult.Handedness.Length;
                             for (int i = 0; i < handednessCount; i++)
                             {
-                                var handedness = handResult.Handedness[i];
-                                var category = handedness.Count > 0 ? handedness[0] : null;
-
-                                if (category != null)
+                                var handednessCategories = handResult.Handedness[i];
+                                if (handednessCategories != null && handednessCategories.Count > 0)
                                 {
-                                    var label = (category as MediaPipeTasksVision.MPPCategory)?.CategoryName;
-                                    result.Handedness.Add(label == "Left" ? HandType.Left : HandType.Right);
+                                    var category = handednessCategories[0];
+                                    if (category != null)
+                                    {
+                                        var label = category.CategoryName;
+                                        result.Handedness.Add(label == "Left" ? HandType.Left : HandType.Right);
+                                    }
+                                    else
+                                    {
+                                        result.Handedness.Add(HandType.Unknown);
+                                    }
                                 }
                                 else
                                 {
@@ -107,6 +148,8 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                             }
                         }
                     }
+
+                    uiImage.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -119,25 +162,31 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
 
         private List<Models.HandLandmark> ConvertHandLandmarks(NSArray<MPPNormalizedLandmark> landmarks)
         {
-            var handLandmarks = new List<Models.HandLandmark>();
-            for (int i = 0; i < landmarks.Count.ToUInt32(); i++)
+            var result = new List<Models.HandLandmark>((int)landmarks.Count);
+            var count = (int)landmarks.Count;
+
+            for (int i = 0; i < count; i++)
             {
                 var landmark = landmarks[i];
-                handLandmarks.Add(new Models.HandLandmark
+                if (landmark != null)
                 {
-                    X = landmark.X,
-                    Y = landmark.Y,
-                    Z = landmark.Z,
-                    Index = i,
-                    Type = (HandLandmarkType)i
-                });
+                    result.Add(new Models.HandLandmark
+                    {
+                        X = landmark.X,
+                        Y = landmark.Y,
+                        Z = landmark.Z,
+                        Index = i,
+                        Type = (HandLandmarkType)i
+                    });
+                }
             }
 
-            return handLandmarks;
+            return result;
         }
 
         public override void Dispose()
         {
+            _handLandmarker = null;
             base.Dispose();
         }
     }

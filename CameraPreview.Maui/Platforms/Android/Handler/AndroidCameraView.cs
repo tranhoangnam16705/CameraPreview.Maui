@@ -39,6 +39,9 @@ namespace CameraPreview.Maui.Platforms.Android.Handler
         private bool _isRunning = false;
         private bool _useFrontCamera = false;
 
+        // Keep strong reference to photo callback to prevent GC
+        private PhotoSaveCallback _currentPhotoCallback;
+
         public event EventHandler<CameraFrameEventArgs> FrameReady;
 
         public event EventHandler CameraStarted;
@@ -368,20 +371,41 @@ namespace CameraPreview.Maui.Platforms.Android.Handler
         public Task<System.IO.Stream> TakePhotoAsync(ImageFormat imageFormat)
         {
             var tcs = new TaskCompletionSource<System.IO.Stream>();
+
+            if (_imageCapture == null)
+            {
+                System.Diagnostics.Debug.WriteLine("TakePhotoAsync: ImageCapture is null");
+                tcs.TrySetException(new InvalidOperationException("ImageCapture not initialized"));
+                return tcs.Task;
+            }
+
+            if (!IsRunning)
+            {
+                System.Diagnostics.Debug.WriteLine("TakePhotoAsync: Camera not running");
+                tcs.TrySetException(new InvalidOperationException("Camera not running"));
+                return tcs.Task;
+            }
+
             try
             {
-                if (_imageCapture != null && IsRunning)
-                {
-                    var url = CreateTempFile(imageFormat);
-                    _imageCapture.TakePicture(
-                        ContextCompat.GetMainExecutor(Context),
-                        new PhotoSaveCallback(this, url.AbsolutePath, tcs));
-                }
+                System.Diagnostics.Debug.WriteLine("TakePhotoAsync: Starting photo capture...");
+
+                var url = CreateTempFile(imageFormat);
+                // Keep strong reference to prevent GC
+                _currentPhotoCallback = new PhotoSaveCallback(this, url.AbsolutePath, tcs);
+                _imageCapture.TakePicture(
+                    ContextCompat.GetMainExecutor(Context),
+                    _currentPhotoCallback);
+
+                System.Diagnostics.Debug.WriteLine("TakePhotoAsync: TakePicture called");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"TakePhotoAsync error: {ex.Message}");
+                tcs.TrySetException(ex);
                 RaiseError($"Take photo error: {ex.Message}");
             }
+
             return tcs.Task;
         }
 
@@ -556,46 +580,63 @@ namespace CameraPreview.Maui.Platforms.Android.Handler
 
             public override void OnCaptureSuccess(global::AndroidX.Camera.Core.IImageProxy image)
             {
-                var buffer = image.GetPlanes()[0].Buffer;
-                var bytes = new byte[buffer.Remaining()];
-                buffer.Get(bytes);
+                System.Diagnostics.Debug.WriteLine("PhotoSaveCallback: OnCaptureSuccess called");
 
-                // Tạo bitmap từ bytes
-                var bitmap = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
-                if (bitmap != null)
+                try
                 {
-                    // Transform nếu cần
+                    var buffer = image.GetPlanes()[0].Buffer;
+                    var bytes = new byte[buffer.Remaining()];
+                    buffer.Get(bytes);
+
+                    // Create bitmap from bytes
+                    var bitmap = BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
+                    if (bitmap == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("PhotoSaveCallback: Failed to decode bitmap");
+                        _tcs.TrySetException(new Exception("Failed to decode bitmap from bytes"));
+                        return;
+                    }
+
+                    // Transform if needed (rotation + mirror for front camera)
                     var transformedBitmap = TransformBitmap(bitmap, image.ImageInfo.RotationDegrees);
                     bitmap.Recycle();
 
-                    // Convert thành stream
-                    var stream = BitmapExtensions.BitmapToStream(transformedBitmap);
+                    // Convert to stream
+                    var stream = new MemoryStream();
+                    transformedBitmap.Compress(Bitmap.CompressFormat.Jpeg!, 95, stream);
+                    stream.Position = 0;
+
+                    // Save to file
+                    using (var fileStream = new FileStream(_path, FileMode.Create))
+                    {
+                        transformedBitmap.Compress(Bitmap.CompressFormat.Jpeg!, 95, fileStream);
+                    }
+
                     transformedBitmap.Recycle();
+
+                    System.Diagnostics.Debug.WriteLine($"PhotoSaveCallback: Photo saved to {_path}");
 
                     _tcs.TrySetResult(stream);
 
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
-                        _cameraView.OnPhotoSaved("Photo captured");
+                        _cameraView.OnPhotoSaved(_path);
                     });
                 }
-                else
+                catch (Exception ex)
                 {
-                    throw new Exception("Failed to decode bitmap from bytes");
+                    System.Diagnostics.Debug.WriteLine($"PhotoSaveCallback error: {ex.Message}");
+                    _tcs.TrySetException(ex);
                 }
-
-                image.Close();
-
-                _tcs.TrySetResult(new MemoryStream(bytes));
-
-                MainThread.BeginInvokeOnMainThread(() =>
+                finally
                 {
-                    _cameraView.OnPhotoSaved(_path);
-                });
+                    image.Close();
+                }
             }
 
             public override void OnError(global::AndroidX.Camera.Core.ImageCaptureException exception)
             {
+                System.Diagnostics.Debug.WriteLine($"PhotoSaveCallback: OnError - {exception.Message}");
                 _tcs.TrySetException(new Exception(exception.Message));
             }
 
@@ -609,7 +650,7 @@ namespace CameraPreview.Maui.Platforms.Android.Handler
                     matrix.PostRotate(rotationDegrees);
                 }
 
-                // Mirror nếu front camera
+                // Mirror for front camera
                 if (_cameraView.UseFrontCamera)
                 {
                     matrix.PostScale(-1f, 1f, originalBitmap.Width / 2f, 0);
