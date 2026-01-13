@@ -14,8 +14,8 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
     /// </summary>
     public class iOSFaceLandmarker : MediaPipeDetectorBase<FaceLandmarksResult>
     {
-        private MPPFaceLandmarker _landmarker;
-        private readonly SemaphoreSlim _detectionLock = new(1, 1);
+        private volatile bool _isDetecting;
+        private string _modelPath;
 
         public override string DetectorName => "iOS Face Landmarker";
 
@@ -25,34 +25,8 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
             {
                 try
                 {
-                    var modelPath = await LandmarkModelProvider
+                    _modelPath = await LandmarkModelProvider
                                 .GetModelPathAsync("face_landmarker.task");
-
-                    var baseOptions = new MPPBaseOptions
-                    {
-                        ModelAssetPath = modelPath
-                    };
-
-                    var options = new MPPFaceLandmarkerOptions
-                    {
-                        BaseOptions = baseOptions,
-                        RunningMode = MPPRunningMode.Image,
-                        NumFaces = _options.MaxNumResults,
-                        MinFaceDetectionConfidence = _options.MinDetectionConfidence,
-                        MinFacePresenceConfidence = _options.MinDetectionConfidence,
-                        MinTrackingConfidence = _options.MinTrackingConfidence,
-                        OutputFaceBlendshapes = _options.EnableFaceBlendshapes,
-                        OutputFacialTransformationMatrixes = _options.EnableFacialTransformationMatrix
-                    };
-
-                    NSError error;
-                    _landmarker = new MPPFaceLandmarker(options, out error);
-
-                    if (error != null)
-                    {
-                        Debug.WriteLine($"iOSFaceLandmarker initialization error: {error.LocalizedDescription}");
-                        throw new InvalidOperationException($"Failed to initialize face landmarker: {error.LocalizedDescription}");
-                    }
 
                     Debug.WriteLine("iOSFaceLandmarker initialized successfully");
                 }
@@ -64,31 +38,56 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
             });
         }
 
-        protected override async Task<FaceLandmarksResult> PerformDetectionAsync(byte[] imageData)
+        private MPPFaceLandmarker CreateLandmarker()
+        {
+            var baseOptions = new MPPBaseOptions
+            {
+                ModelAssetPath = _modelPath
+            };
+
+            var options = new MPPFaceLandmarkerOptions
+            {
+                BaseOptions = baseOptions,
+                RunningMode = MPPRunningMode.Image,
+                NumFaces = _options.MaxNumResults,
+                MinFaceDetectionConfidence = _options.MinDetectionConfidence,
+                MinFacePresenceConfidence = _options.MinDetectionConfidence,
+                MinTrackingConfidence = _options.MinTrackingConfidence,
+                OutputFaceBlendshapes = _options.EnableFaceBlendshapes,
+                OutputFacialTransformationMatrixes = _options.EnableFacialTransformationMatrix
+            };
+
+            NSError error;
+            var landmarker = new MPPFaceLandmarker(options, out error);
+
+            if (error != null)
+            {
+                Debug.WriteLine($"CreateLandmarker error: {error.LocalizedDescription}");
+                return null;
+            }
+
+            return landmarker;
+        }
+
+        protected override Task<FaceLandmarksResult> PerformDetectionAsync(byte[] imageData)
         {
             var result = new FaceLandmarksResult();
 
-            if (_landmarker == null)
-                return result;
+            if (string.IsNullOrEmpty(_modelPath))
+                return Task.FromResult(result);
 
-            // Skip if another detection is in progress
-            if (!await _detectionLock.WaitAsync(0))
+            // Skip if another detection is in progress - simple flag check
+            if (_isDetecting)
             {
-                Debug.WriteLine("Skipping frame - detection in progress");
-                return result;
+                return Task.FromResult(result);
             }
+
+            _isDetecting = true;
 
             try
             {
-                // Use timeout to prevent hanging
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-
-                var detectionTask = Task.Run(() => DetectFaces(imageData), cts.Token);
-                result = await detectionTask.WaitAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.WriteLine("Face detection timed out");
+                // Run detection with fresh landmarker each time to avoid state issues
+                result = DetectFaces(imageData);
             }
             catch (Exception ex)
             {
@@ -96,10 +95,10 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
             }
             finally
             {
-                _detectionLock.Release();
+                _isDetecting = false;
             }
 
-            return result;
+            return Task.FromResult(result);
         }
 
         private FaceLandmarksResult DetectFaces(byte[] imageData)
@@ -108,40 +107,38 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
 
             UIImage uiImage = null;
             MPPImage mpImage = null;
+            MPPFaceLandmarker landmarker = null;
 
             try
             {
+                // Create fresh landmarker for each detection to avoid state corruption
+                landmarker = CreateLandmarker();
+                if (landmarker == null)
+                    return result;
+
                 using var nsData = NSData.FromArray(imageData);
                 uiImage = UIImage.LoadFromData(nsData);
 
                 if (uiImage == null)
-                {
-                    Debug.WriteLine("Failed to create UIImage from byte array");
                     return result;
-                }
 
                 NSError imageError;
                 mpImage = new MPPImage(uiImage, out imageError);
 
                 if (imageError != null)
-                {
-                    Debug.WriteLine($"MPPImage creation failed: {imageError.LocalizedDescription}");
                     return result;
-                }
 
                 NSError detectError;
-                var faceResult = _landmarker.DetectImage(mpImage, out detectError);
+                var faceResult = landmarker.DetectImage(mpImage, out detectError);
 
                 if (detectError != null)
-                {
-                    Debug.WriteLine($"Face detection error: {detectError.LocalizedDescription}");
                     return result;
-                }
 
-                if (faceResult?.FaceLandmarks != null && faceResult.FaceLandmarks.Length > 0)
+                var faceCount = (int)(faceResult?.FaceLandmarks?.Length ?? 0);
+
+                if (faceCount > 0)
                 {
                     result.IsDetected = true;
-                    var faceCount = (int)faceResult.FaceLandmarks.Length;
 
                     for (int faceIdx = 0; faceIdx < faceCount; faceIdx++)
                     {
@@ -169,6 +166,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
                 // Always dispose resources in reverse order of creation
                 mpImage?.Dispose();
                 uiImage?.Dispose();
+                landmarker?.Dispose();
             }
 
             return result;
@@ -222,8 +220,7 @@ namespace Mediapipe.Maui.Platforms.iOS.Services
 
         public override void Dispose()
         {
-            _detectionLock?.Dispose();
-            _landmarker = null;
+            _modelPath = null;
             base.Dispose();
         }
     }

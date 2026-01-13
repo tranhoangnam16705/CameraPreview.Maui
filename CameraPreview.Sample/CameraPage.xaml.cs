@@ -4,7 +4,6 @@ using Mediapipe.Maui.Controls;
 using Mediapipe.Maui.Models;
 using Mediapipe.Maui.Services;
 using Mediapipe.Maui.Servicesss;
-using System.Threading.Tasks;
 
 namespace CameraPreview.Sample;
 
@@ -41,55 +40,28 @@ public partial class CameraPage : ContentPage
             return;
 
         _isProcessing = true;
-
-        // Copy frame data to avoid reference issues
-        var imageData = e.ImageData;
-        var width = e.Width;
-        var height = e.Height;
-
         try
         {
-            // Process with MediaPipe on background thread
-            var result = await Task.Run(async () =>
-            {
-                try
-                {
-                    return await _faceMeshAnalyzer.AnalyzeAsync(imageData);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"AnalyzeAsync error: {ex.Message}");
-                    return new FaceMeshResult();
-                }
-            });
-
-            // Update UI on main thread
+            // Process with MediaPipe
+            var result = await _faceMeshAnalyzer.AnalyzeAsync(e.ImageData);
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                try
-                {
-                    var scale = CalculateScaleFactor(
-                        viewWidth: (float)camerapreview.Width,
-                        viewHeight: (float)camerapreview.Height,
-                        imageWidth: width,
-                        imageHeight: height,
-                        runningMode: FaceRunningMode.LiveStream);
-                    lblStatus.Text = width + " : " + height;
-                    _overlayDrawable.Results = result;
-                    _overlayDrawable.ImageWidth = width;
-                    _overlayDrawable.ImageHeight = height;
-                    _overlayDrawable.ScaleFactor = scale;
-                    OverlayCanvas.Invalidate();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"UI update error: {ex.Message}");
-                }
+                // 2️⃣ TÍNH SCALE FACTOR Ở ĐÂY
+                var scale = CalculateScaleFactor(
+                    viewWidth: (float)camerapreview.Width,
+                    viewHeight: (float)camerapreview.Height,
+                    imageWidth: e.Width,
+                    imageHeight: e.Height,
+                    runningMode: FaceRunningMode.LiveStream);
+                lblStatus.Text = e.Width + " : " + e.Height;
+                _overlayDrawable.Results = result;
+                _overlayDrawable.ImageWidth = e.Width;   // Image width, not view width
+                _overlayDrawable.ImageHeight = e.Height; // Image height, not view height
+                _overlayDrawable.ScaleFactor = scale;
+                OverlayCanvas.Invalidate();
+
+                //UpdateUI(result);
             });
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"OnFrameReady error: {ex.Message}");
         }
         finally
         {

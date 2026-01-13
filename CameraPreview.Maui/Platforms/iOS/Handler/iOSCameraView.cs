@@ -672,8 +672,8 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             {
                 _lastCameraFrame = args;
             }
-            FrameReady?.Invoke(this, args);
-        }
+                FrameReady?.Invoke(this, args);
+            }
 
         internal void OnPhotoSaved(string filePath)
         {
@@ -713,9 +713,15 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
             private bool _isPortraitOrientation = true; // Track if 90/270 rotation is applied
             private bool _isMirrored = false; // Track if front camera mirroring is applied
 
+            // Cache CIContext for better performance - creating new context each frame is expensive
+            private CIContext _ciContext;
+            private CGColorSpace _colorSpace;
+
             public CameraFrameDelegate(iOSCameraView cameraView)
             {
                 _cameraView = cameraView;
+                _ciContext = CIContext.Create();
+                _colorSpace = CGColorSpace.CreateDeviceRGB();
             }
 
             public void SetPortraitOrientation(bool isPortrait)
@@ -733,18 +739,30 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
                 CMSampleBuffer sampleBuffer,
                 AVCaptureConnection connection)
             {
+                _frameCounter++;
+
+                // Log every 50 frames to monitor camera is alive
+                if (_frameCounter % 50 == 0)
+                {
+                    Debug.WriteLine($"[Camera] Frame #{_frameCounter} received, isProcessing: {_isProcessing}");
+                }
+
+                if (sampleBuffer == null)
+                {
+                    Debug.WriteLine("[DidOutputSampleBuffer] sampleBuffer is NULL!");
+                    return;
+                }
+
                 try
                 {
-                    // Skip frames to reduce CPU load
-                    if (++_frameCounter % (FRAME_SKIP + 1) != 0)
+                    // Skip frames to reduce CPU load (process every 3rd frame)
+                    if (_frameCounter % (FRAME_SKIP + 1) != 0)
                     {
-                        sampleBuffer?.Dispose();
                         return;
                     }
 
                     if (_isProcessing)
                     {
-                        sampleBuffer?.Dispose();
                         return;
                     }
 
@@ -754,10 +772,11 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Frame processing error: {ex.Message}");
+                    Debug.WriteLine($"Frame processing error: {ex.Message}\n{ex.StackTrace}");
                 }
                 finally
                 {
+                    // Always dispose sampleBuffer - only once in finally block
                     sampleBuffer?.Dispose();
                     _isProcessing = false;
                 }
@@ -769,7 +788,9 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
                 {
                     var pixelBuffer = sampleBuffer.GetImageBuffer() as CVPixelBuffer;
                     if (pixelBuffer == null)
+                    {
                         return;
+                    }
 
                     // Get actual buffer dimensions (after VideoRotationAngle is applied)
                     var bufferWidth = (int)pixelBuffer.Width;
@@ -784,59 +805,53 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
                     // Convert to JPEG
                     var jpegData = ConvertPixelBufferToJPEG(pixelBuffer, _isPortraitOrientation, _isMirrored);
                     if (jpegData == null)
+                    {
+                        Debug.WriteLine("[ProcessFrame] jpegData is NULL");
                         return;
+                    }
+
+                    // Copy data immediately to avoid reference issues
+                    var imageBytes = jpegData.ToArray();
+                    jpegData.Dispose();
 
                     // Use actual pixel buffer dimensions
                     // VideoRotationAngle should have already rotated the buffer if supported
                     var args = new CameraFrameEventArgs
                     {
-                        ImageData = jpegData.ToArray(),
+                        ImageData = imageBytes,
                         Width = bufferWidth,
                         Height = bufferHeight,
                         Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                         RotationDegrees = 0
                     };
 
-                    // Raise event on main thread
-                    MainThread.BeginInvokeOnMainThread(() =>
-                    {
-                        _cameraView.OnFrameAnalyzed(args);
-                    });
-
-                    jpegData.Dispose();
+                    // Raise event directly - let the subscriber handle threading
+                    _cameraView.OnFrameAnalyzed(args);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"ProcessFrame error: {ex.Message}");
+                    Debug.WriteLine($"ProcessFrame error: {ex.Message}\n{ex.StackTrace}");
                 }
             }
 
             private NSData ConvertPixelBufferToJPEG(CVPixelBuffer pixelBuffer, bool rotateToPortrait, bool mirror)
             {
+                CIImage ciImage = null;
                 try
                 {
                     // Use CIImage and CIContext for efficient conversion
-                    var ciImage = CIImage.FromImageBuffer(pixelBuffer);
+                    ciImage = CIImage.FromImageBuffer(pixelBuffer);
                     if (ciImage == null)
                         return null;
 
                     // No transformation needed - VideoRotationAngle handles rotation
                     // and VideoMirrored handles front camera mirroring on the connection
 
-                    // Use shared context for better performance
-                    using var context = CIContext.Create();
-                    using var colorSpace = CGColorSpace.CreateDeviceRGB();
-
-                    // Create options dictionary for JPEG compression quality
-                    var options = new NSDictionary(
-                        new NSString("kCGImageDestinationLossyCompressionQuality"),
-                        NSNumber.FromFloat(0.85f)
-                    );
-
-                    var jpegData = context.GetJpegRepresentation(
+                    // Use cached context and colorSpace for better performance
+                    var jpegData = _ciContext.GetJpegRepresentation(
                         ciImage,
-                        colorSpace,
-                        options
+                        _colorSpace,
+                        new NSDictionary()
                     );
 
                     return jpegData;
@@ -846,6 +861,22 @@ namespace CameraPreview.Maui.Platforms.iOS.Handler
                     Debug.WriteLine($"ConvertPixelBufferToJPEG error: {ex.Message}");
                     return null;
                 }
+                finally
+                {
+                    ciImage?.Dispose();
+                }
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    _ciContext?.Dispose();
+                    _ciContext = null;
+                    _colorSpace?.Dispose();
+                    _colorSpace = null;
+                }
+                base.Dispose(disposing);
             }
         }
 
