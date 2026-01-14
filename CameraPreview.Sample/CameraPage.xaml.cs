@@ -132,7 +132,7 @@ public partial class CameraPage : ContentPage
     {
         camerapreview.HandlerChanged -= OnHandlerChanged;
 
-        var camera = camerapreview.Cameras.FirstOrDefault(x => x.Position == CameraPreviewPosition.Back);
+        var camera = camerapreview.Cameras.FirstOrDefault(x => x.Position == CameraPreviewPosition.Front);
         if (camera != null)
         {
             camerapreview.Camera = camera;

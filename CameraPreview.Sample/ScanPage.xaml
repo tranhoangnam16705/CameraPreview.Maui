@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="CameraPreview.Sample.ScanPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:controls="clr-namespace:CameraPreview.Maui.Controls;assembly=CameraPreview.Maui"
+    Title="ScanPage">
+    <Grid>
+        <!--  Native Camera View - Simple!  -->
+        <controls:CameraView
+            x:Name="camerapreview"
+            Grid.Row="0"
+            AutoStart="False"
+            FrameReady="OnFrameReady"
+            HeightRequest="500"
+            HorizontalOptions="Center"
+            VerticalOptions="Start"
+            WidthRequest="500" />
+
+    </Grid>
+</ContentPage>

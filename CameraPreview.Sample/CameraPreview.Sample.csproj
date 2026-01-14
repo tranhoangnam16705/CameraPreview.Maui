@@ -58,10 +58,19 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 	</ItemGroup>
 	<ItemGroup>
+	  <ProjectReference Include="..\BarcodeScanner.Maui\BarcodeScanner.Maui.csproj" />
 	  <ProjectReference Include="..\CameraPreview.Maui\CameraPreview.Maui.csproj" />
 	  <ProjectReference Include="..\Mediapipe.Maui\Mediapipe.Maui.csproj" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Compile Update="ScanPage.xaml.cs">
+	    <DependentUpon>ScanPage.xaml</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+	<ItemGroup>
+	  <MauiXaml Update="ScanPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="CameraPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

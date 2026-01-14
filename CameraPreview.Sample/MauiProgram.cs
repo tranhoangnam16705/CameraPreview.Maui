@@ -4,6 +4,7 @@ using Mediapipe.Maui.Services;
 using Mediapipe.Maui.Servicesss;
 using Microsoft.Extensions.Logging;
 using Mediapipe.Maui;
+using BarcodeScanner.Maui;
 
 namespace CameraPreview.Sample
 {
@@ -18,7 +19,7 @@ namespace CameraPreview.Sample
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                }).UseCameraPreView().UseMediaPipe();
+                }).UseCameraPreView().UseMediaPipe().UseBarcodeScanner();
 
             builder.Services.AddTransient<DrowsinessAnalyzer>();
             builder.Services.AddTransient<SmokingAnalyzer>();
