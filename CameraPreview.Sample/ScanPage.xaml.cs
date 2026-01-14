@@ -8,6 +8,7 @@ public partial class ScanPage : ContentPage
 {
     private readonly IBarcodeScanner _barcodeScanner;
     private volatile bool _isScaned;
+    private volatile bool _isProcessing;
 
     public ScanPage(IBarcodeScanner barcodeScanner)
     {
@@ -17,25 +18,40 @@ public partial class ScanPage : ContentPage
 
     private async void OnFrameReady(object sender, CameraFrameEventArgs e)
     {
-        // Skip frame if already processing to prevent queue buildup
-        if (_isScaned)
+        if (_isScaned || _isProcessing)
             return;
+
+        _isProcessing = true;
         try
         {
-            var result = await _barcodeScanner.DecodeAsync(e.ImageData);
+            var result = await _barcodeScanner.DecodeAsync(e.ImageData).ConfigureAwait(false);
+
             if (result != null && result.Length > 0)
             {
                 _isScaned = true;
-                var mainpage = App.Current?.Windows?[0].Page;
-                if (mainpage != null)
+                var resultText = result[0].Text;
+
+                // Stop camera before showing alert to prevent iOS dispatch queue issues
+                MainThread.BeginInvokeOnMainThread(async () =>
                 {
-                    await mainpage.DisplayAlertAsync("QUÉT QRCode thành công", result[0].Text, "Đóng");
-                }
+                    try
+                    {
+                        camerapreview.Stop();
+                        await DisplayAlertAsync("QUÉT QRCode thành công", resultText, "Đóng");
+                        await camerapreview.StartAsync();
+                        _isScaned = false;
+                    }
+                    catch
+                    {
+                        _isScaned = false;
+                        try { await camerapreview.StartAsync(); } catch { }
+                    }
+                });
             }
         }
         finally
         {
-            _isScaned = false;
+            _isProcessing = false;
         }
     }
 
