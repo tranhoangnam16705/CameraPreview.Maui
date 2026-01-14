@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(tree:*)",
+      "Bash(dir /s /b \"E:\\\\SourceCode\\\\NamCkiku\\\\CameraPreview.Maui\\\\BarcodeScanner.Maui\")",
+      "Bash(findstr:*)",
+      "Bash(findstr /V \"obj\\\\|bin\"\")"
     ]
   }
 }
